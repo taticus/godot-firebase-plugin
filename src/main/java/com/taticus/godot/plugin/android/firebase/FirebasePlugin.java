@@ -1,10 +1,8 @@
 package com.taticus.godot.plugin.android.firebase;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Log;
-import android.view.View;
 
 import androidx.annotation.NonNull;
 
@@ -22,6 +20,7 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.GetTokenResult;
 import com.google.firebase.auth.GoogleAuthProvider;
 import com.google.firebase.auth.PlayGamesAuthProvider;
 
@@ -105,22 +104,26 @@ public class FirebasePlugin extends GodotPlugin {
         return mAuth.getCurrentUser() != null;
     }
 
-    public String user_name() {
+    public String get_user_name() {
         return getCurrentUser().getDisplayName();
     }
 
-    public String photo_url() {
+    public String get_photo_url() {
         Uri url = getCurrentUser().getPhotoUrl();
         assert url != null;
         return url.toString();
     }
 
-    public String email() {
+    public String get_email() {
         return getCurrentUser().getEmail();
     }
 
-    public String uid() {
+    public String get_uid() {
         return getCurrentUser().getUid();
+    }
+
+    public String get_id_token(boolean forceRefresh) {
+        return Objects.requireNonNull(getCurrentUser().getIdToken(forceRefresh).getResult()).getToken();
     }
 
     public void sign_out() {
@@ -177,7 +180,7 @@ public class FirebasePlugin extends GodotPlugin {
                             emitSignal(loginSuccessSignal.getName());
                         } else {
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
-                            emitSignal(loginErrorSignal.getName(), task.getException().getMessage());
+                            emitSignal(loginErrorSignal.getName(), Objects.requireNonNull(task.getException()).getMessage());
                         }
                     }
                 });
