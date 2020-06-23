@@ -51,7 +51,7 @@ This works for [Godot Engine](https://godotengine.org/)'s 3.2.2+
 	apply plugin: 'com.google.gms.google-services'
    </pre>
    
-Setup is done, now you can run the project in an android device.
+Setup is done, now you can run the project on an android device.
 
 ## API instructions
 
@@ -77,4 +77,10 @@ In any of your Godot Script (I prefer a singleton called Global.gd), initialize 
 	func _on_login_error(error) -> void:
 		printerr(error)
 
-More features comming soon
+More features comming soon...
+
+## Debug Instructions
+
+To check errors on the plugin, run the `adb logcat` on terminal:
+
+	adb -d logcat godot:V GoogleService:V Firebase:V DEBUG:V AndroidRuntime:V FirebasePlugin:V FirebaseApp:V *:S
