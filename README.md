@@ -8,7 +8,10 @@ This works for [Godot Engine](https://godotengine.org/)'s 3.2.2+
 2. Install **Export Templates**: select menu *Editor > Manage Export Templates...* and download for Current Version (3.2.2+)
 3. Install **Android Build Template** for your project: select menu *Project > Install Android Build Template...*, and then click *Install*. This will install the files in your project's directory (by adding `res://android/`).
 4. From the [Releases Page](https://github.com/taticus/godot-firebase-plugin/releases) download the latest plugin version and unzip it to `res://android/plugins`. Both files (`Firebase.release.aar` and `Firebase.gdap` must be in the folder.
-5. Select menu *Project > Export*, and *Add...* Android. After setting your *Unique Name*, keystore stuff etc, don't forget to turn on ***Use Custom Build*** and enable **Firebase** plugin. Then click *Close*.
+5. Select menu *Project > Export*, and *Add...* Android. After setting your *Unique Name*, keystore stuff etc, don't forget to turn on ***Use Custom Build*** and enable **Firebase** plugin:
+
+![](https://i.imgur.com/uobGpQ6.png)
+
 6. From [Firebase console](http://console.firebase.google.com/) download your project's **google-services.json** and copy/move it to `res://android/build/`.
 
    **Notice:**<br/>Remember to always download a new version of google-services.json whenever you make changes at the Firebase console!
