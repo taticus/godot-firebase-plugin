@@ -69,7 +69,7 @@ In any of your Godot Script (I prefer a singleton called Global.gd), initialize 
 
 	func play_services_login() -> void:
 		var web_client_id = "you can store your play games web client id in your project settings"
-		firebase.login_with_play_games(web_client_id)
+		firebase.login_with_google(web_client_id)
 
 	func _on_login_success() -> void:
 		print(firebase.email())
