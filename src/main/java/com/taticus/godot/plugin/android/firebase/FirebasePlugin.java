@@ -72,10 +72,11 @@ public class FirebasePlugin extends GodotPlugin {
                 "login_with_play_games",
                 "login_with_google",
                 "is_logged_in",
-                "user_name",
-                "photo_url",
-                "email",
-                "uid",
+                "get_user_name",
+                "get_photo_url",
+                "get_email",
+                "get_uid",
+                "get_id_token",
                 "sign_out"
         );
     }
