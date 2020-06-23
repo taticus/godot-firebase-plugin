@@ -35,7 +35,10 @@ This works for [Godot Engine](https://godotengine.org/)'s 3.2.2+
     dependencies {
 	classpath libraries.androidGradlePlugin
 	classpath libraries.kotlinGradlePlugin
-		**classpath 'com.google.gms:google-services:4.3.3'**
+	
+	// ADD THIS DEPENDENCY!!!
+	classpath 'com.google.gms:google-services:4.3.3'
+	
 	//CHUNK_BUILDSCRIPT_DEPENDENCIES_BEGIN
 	//CHUNK_BUILDSCRIPT_DEPENDENCIES_END
     }
