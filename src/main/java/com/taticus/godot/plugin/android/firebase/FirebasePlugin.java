@@ -8,10 +8,12 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 
+import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -69,6 +71,7 @@ public class FirebasePlugin extends GodotPlugin {
     public List<String> getPluginMethods() {
         return Arrays.asList(
                 "login_with_play_games",
+                "login_with_google",
                 "is_logged_in",
                 "user_name",
                 "photo_url",
@@ -79,13 +82,23 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     public void login_with_play_games(String webClientid) {
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN)
+                .requestServerAuthCode(webClientid, true)
+                .requestEmail()
+                .build();
+
+        GoogleSignInClient mGoogleSignInClient = GoogleSignIn.getClient(getGodot(), gso);
+        getGodot().startActivityForResult(mGoogleSignInClient.getSignInIntent(), RC_PLAY_GAMES_SIGN_IN);
+    }
+
+    public void login_with_google(String webClientid) {
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(webClientid)
                 .requestEmail()
                 .build();
 
         GoogleSignInClient mGoogleSignInClient = GoogleSignIn.getClient(getGodot(), gso);
-        getGodot().startActivityForResult(mGoogleSignInClient.getSignInIntent(), RC_PLAY_GAMES_SIGN_IN);
+        getGodot().startActivityForResult(mGoogleSignInClient.getSignInIntent(), RC_GOOGLE_SIGN_IN);
     }
 
     public boolean is_logged_in() {
@@ -123,19 +136,28 @@ public class FirebasePlugin extends GodotPlugin {
 
     @Override
     public void onMainActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == RC_PLAY_GAMES_SIGN_IN || requestCode == RC_GOOGLE_SIGN_IN) {
+        if (requestCode == RC_PLAY_GAMES_SIGN_IN) {
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            assert result != null;
+            if (result.isSuccess()) {
+                GoogleSignInAccount account = result.getSignInAccount();
+                assert account != null;
+                Log.d(TAG, "firebaseAuthWithPlayGames:" + account.getId());
+                AuthCredential credential = PlayGamesAuthProvider.getCredential(Objects.requireNonNull(account.getServerAuthCode()));
+                firebaseAuth(credential);
+            } else {
+                String message = result.getStatus().getStatusCode() + ": " + result.getStatus().getStatusMessage();
+                Log.w(TAG, "Play Games sign in failed " + message);
+                emitSignal(loginErrorSignal.getName(), message);
+            }
+        } else if (requestCode == RC_GOOGLE_SIGN_IN) {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             try {
                 GoogleSignInAccount account = task.getResult(ApiException.class);
                 assert account != null;
                 Log.d(TAG, "firebaseAuthWithGoogle:" + account.getId());
-                if(requestCode == RC_GOOGLE_SIGN_IN){
-                    AuthCredential credential = GoogleAuthProvider.getCredential(account.getIdToken(), null);
-                    firebaseAuth(credential);
-                } else {
-                    AuthCredential credential = PlayGamesAuthProvider.getCredential(Objects.requireNonNull(account.getIdToken()));
-                    firebaseAuth(credential);
-                }
+                AuthCredential credential = GoogleAuthProvider.getCredential(account.getIdToken(), null);
+                firebaseAuth(credential);
             } catch (ApiException e) {
                 Log.w(TAG, "Google sign in failed", e);
                 emitSignal(loginErrorSignal.getName(), e.getMessage());
@@ -155,7 +177,7 @@ public class FirebasePlugin extends GodotPlugin {
                             emitSignal(loginSuccessSignal.getName());
                         } else {
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
-                            emitSignal(loginErrorSignal.getName(), Objects.requireNonNull(task.getException()).getMessage());
+                            emitSignal(loginErrorSignal.getName(), task.getException().getMessage());
                         }
                     }
                 });
