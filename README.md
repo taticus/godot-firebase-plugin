@@ -27,19 +27,19 @@ This works for [Godot Engine](https://godotengine.org/)'s 3.2.2+
     apply from: 'config.gradle'
 
     repositories {
-        google()
-        jcenter()
-//CHUNK_BUILDSCRIPT_REPOSITORIES_BEGIN
-//CHUNK_BUILDSCRIPT_REPOSITORIES_END
+	google()
+	jcenter()
+	//CHUNK_BUILDSCRIPT_REPOSITORIES_BEGIN
+	//CHUNK_BUILDSCRIPT_REPOSITORIES_END
     }
     dependencies {
-        classpath libraries.androidGradlePlugin
-        classpath libraries.kotlinGradlePlugin
+	classpath libraries.androidGradlePlugin
+	classpath libraries.kotlinGradlePlugin
 		**classpath 'com.google.gms:google-services:4.3.3'**
-//CHUNK_BUILDSCRIPT_DEPENDENCIES_BEGIN
-//CHUNK_BUILDSCRIPT_DEPENDENCIES_END
+	//CHUNK_BUILDSCRIPT_DEPENDENCIES_BEGIN
+	//CHUNK_BUILDSCRIPT_DEPENDENCIES_END
     }
-}
+   }
    </pre>
    
 9. Add the google-services plugin at the end of the file`res://android/build/build.gradle`:
