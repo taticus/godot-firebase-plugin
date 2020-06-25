@@ -40,8 +40,10 @@ public class FirebasePlugin extends GodotPlugin {
     private static final int RC_PLAY_GAMES_SIGN_IN = 9001;
     private static final int RC_GOOGLE_SIGN_IN = 9002;
 
-    private final SignalInfo loginSuccessSignal = new SignalInfo("login_success");
-    private final SignalInfo loginErrorSignal = new SignalInfo("login_error", String.class);
+    private final SignalInfo loginSuccessfullySignal = new SignalInfo("login_successfully");
+    private final SignalInfo loginFailedSignal = new SignalInfo("login_failed", String.class);
+    private final SignalInfo idTokenLoadedSignal = new SignalInfo("id_token_loaded", String.class);
+    private final SignalInfo idTokenFailedSignal = new SignalInfo("id_token_failed", String.class);
 
     private FirebaseAuth mAuth;
 
@@ -63,7 +65,11 @@ public class FirebasePlugin extends GodotPlugin {
 
     @Override
     public Set<SignalInfo> getPluginSignals() {
-        return new HashSet<>(Arrays.asList(loginSuccessSignal, loginErrorSignal));
+        return new HashSet<>(Arrays.asList(
+                loginSuccessfullySignal,
+                loginFailedSignal,
+                idTokenLoadedSignal,
+                idTokenFailedSignal));
     }
 
     @Override
@@ -123,19 +129,35 @@ public class FirebasePlugin extends GodotPlugin {
         return getCurrentUser().getUid();
     }
 
-    public String get_id_token(boolean forceRefresh) {
-        return Objects.requireNonNull(getCurrentUser().getIdToken(forceRefresh).getResult()).getToken();
+    public void get_id_token(boolean forceRefresh) {
+        FirebaseUser user = getCurrentUser();
+        if (user == null) {
+            emitSignal(idTokenFailedSignal.getName(), "User not loaded");
+            return;
+        }
+
+        user
+                .getIdToken(forceRefresh)
+                .addOnCompleteListener(new OnCompleteListener<GetTokenResult>() {
+                    public void onComplete(@NonNull Task<GetTokenResult> task) {
+                        if (task.isSuccessful()) {
+                            String idToken = Objects.requireNonNull(task.getResult()).getToken();
+                            emitSignal(idTokenLoadedSignal.getName(), idToken);
+                        } else {
+                            String msg = "Get Id Token in failed " + Objects.requireNonNull(task.getException()).getMessage();
+                            Log.w(TAG, msg);
+                            emitSignal(idTokenFailedSignal.getName(), msg);
+                        }
+                    }
+                });
     }
 
     public void sign_out() {
         mAuth.signOut();
     }
 
-    @NonNull
     private FirebaseUser getCurrentUser() {
-        FirebaseUser user = mAuth.getCurrentUser();
-        assert user != null;
-        return user;
+        return mAuth.getCurrentUser();
     }
 
     @Override
@@ -152,7 +174,7 @@ public class FirebasePlugin extends GodotPlugin {
             } else {
                 String message = result.getStatus().getStatusCode() + ": " + result.getStatus().getStatusMessage();
                 Log.w(TAG, "Play Games sign in failed " + message);
-                emitSignal(loginErrorSignal.getName(), message);
+                emitSignal(loginFailedSignal.getName(), message);
             }
         } else if (requestCode == RC_GOOGLE_SIGN_IN) {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
@@ -164,7 +186,7 @@ public class FirebasePlugin extends GodotPlugin {
                 firebaseAuth(credential);
             } catch (ApiException e) {
                 Log.w(TAG, "Google sign in failed", e);
-                emitSignal(loginErrorSignal.getName(), e.getMessage());
+                emitSignal(loginFailedSignal.getName(), e.getMessage());
             }
         }
     }
@@ -178,10 +200,10 @@ public class FirebasePlugin extends GodotPlugin {
                             Log.d(TAG, "signInWithCredential:success");
                             FirebaseUser user = mAuth.getCurrentUser();
                             assert user != null;
-                            emitSignal(loginSuccessSignal.getName());
+                            emitSignal(loginSuccessfullySignal.getName());
                         } else {
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
-                            emitSignal(loginErrorSignal.getName(), Objects.requireNonNull(task.getException()).getMessage());
+                            emitSignal(loginFailedSignal.getName(), Objects.requireNonNull(task.getException()).getMessage());
                         }
                     }
                 });
