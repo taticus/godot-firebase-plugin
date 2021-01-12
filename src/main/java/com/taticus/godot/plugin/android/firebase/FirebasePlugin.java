@@ -2,6 +2,7 @@ package com.taticus.godot.plugin.android.firebase;
 
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -15,6 +16,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.FirebaseApp;
@@ -23,6 +25,8 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GetTokenResult;
 import com.google.firebase.auth.GoogleAuthProvider;
 import com.google.firebase.auth.PlayGamesAuthProvider;
+import com.google.firebase.crashlytics.FirebaseCrashlytics;
+import com.google.firebase.crashlytics.internal.common.CrashlyticsCore;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -46,12 +50,16 @@ public class FirebasePlugin extends GodotPlugin {
     private final SignalInfo idTokenFailedSignal = new SignalInfo("id_token_failed", String.class);
 
     private FirebaseAuth mAuth;
+    private FirebaseCrashlytics mCrashlytics;
+    private FirebaseAnalytics mAnalytics;
 
     public FirebasePlugin(Godot godot) {
         super(godot);
         try {
-            FirebaseApp.initializeApp(godot);
+            FirebaseApp.initializeApp(Objects.requireNonNull(getActivity()));
             mAuth = FirebaseAuth.getInstance();
+            mCrashlytics = FirebaseCrashlytics.getInstance();
+            mAnalytics = FirebaseAnalytics.getInstance(getActivity());
             Log.d(TAG, "Firebase initialized.");
         } catch (Exception e) {
             Log.e(TAG, "ERROR " + e.getMessage());
@@ -83,7 +91,13 @@ public class FirebasePlugin extends GodotPlugin {
                 "get_email",
                 "get_uid",
                 "get_id_token",
-                "sign_out"
+                "sign_out",
+
+                "log_event",
+
+                "record_exception",
+                "log"
+
         );
     }
 
@@ -93,7 +107,7 @@ public class FirebasePlugin extends GodotPlugin {
                 .requestEmail()
                 .build();
 
-        GoogleSignInClient mGoogleSignInClient = GoogleSignIn.getClient(getGodot(), gso);
+        GoogleSignInClient mGoogleSignInClient = GoogleSignIn.getClient(Objects.requireNonNull(getActivity()), gso);
         getGodot().startActivityForResult(mGoogleSignInClient.getSignInIntent(), RC_PLAY_GAMES_SIGN_IN);
     }
 
@@ -103,7 +117,7 @@ public class FirebasePlugin extends GodotPlugin {
                 .requestEmail()
                 .build();
 
-        GoogleSignInClient mGoogleSignInClient = GoogleSignIn.getClient(getGodot(), gso);
+        GoogleSignInClient mGoogleSignInClient = GoogleSignIn.getClient(Objects.requireNonNull(getActivity()), gso);
         getGodot().startActivityForResult(mGoogleSignInClient.getSignInIntent(), RC_GOOGLE_SIGN_IN);
     }
 
@@ -156,6 +170,25 @@ public class FirebasePlugin extends GodotPlugin {
         mAuth.signOut();
     }
 
+    public void log_event(String event, String[] keys, String[] values) {
+        if (keys.length != values.length) {
+            return;
+        }
+        Bundle bundle = new Bundle();
+        for (int i = 0; i < keys.length; i++) {
+            bundle.putString(keys[i], values[i]);
+        }
+        mAnalytics.logEvent(event, bundle);
+    }
+
+    public void record_exception(String message) {
+        mCrashlytics.recordException(new RuntimeException(message));
+    }
+
+    public void log(String message) {
+        mCrashlytics.log(message);
+    }
+
     private FirebaseUser getCurrentUser() {
         return mAuth.getCurrentUser();
     }
@@ -193,13 +226,16 @@ public class FirebasePlugin extends GodotPlugin {
 
     private void firebaseAuth(AuthCredential credential) {
         mAuth.signInWithCredential(credential)
-                .addOnCompleteListener(getGodot(), new OnCompleteListener<AuthResult>() {
+                .addOnCompleteListener(Objects.requireNonNull(getActivity()), new OnCompleteListener<AuthResult>() {
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         if (task.isSuccessful()) {
                             Log.d(TAG, "signInWithCredential:success");
                             FirebaseUser user = mAuth.getCurrentUser();
                             assert user != null;
+                            mCrashlytics.setUserId(user.getUid());
+                            mAnalytics.setUserId(user.getUid());
+                            mCrashlytics.sendUnsentReports();
                             emitSignal(loginSuccessfullySignal.getName());
                         } else {
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
