@@ -26,9 +26,14 @@ import com.google.firebase.auth.GetTokenResult;
 import com.google.firebase.auth.GoogleAuthProvider;
 import com.google.firebase.auth.PlayGamesAuthProvider;
 import com.google.firebase.crashlytics.FirebaseCrashlytics;
-import com.google.firebase.crashlytics.internal.common.CrashlyticsCore;
+import com.google.firebase.perf.FirebasePerformance;
+import com.google.firebase.perf.metrics.HttpMetric;
+import com.google.firebase.perf.metrics.Trace;
+import com.google.firebase.perf.transport.TransportManager;
+import com.google.firebase.perf.util.Timer;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -52,6 +57,10 @@ public class FirebasePlugin extends GodotPlugin {
     private FirebaseAuth mAuth;
     private FirebaseCrashlytics mCrashlytics;
     private FirebaseAnalytics mAnalytics;
+    private FirebasePerformance mPerformance;
+
+    private HashMap<Integer, HttpMetric> metrics;
+    private HashMap<Integer, Trace> traces;
 
     public FirebasePlugin(Godot godot) {
         super(godot);
@@ -60,6 +69,7 @@ public class FirebasePlugin extends GodotPlugin {
             mAuth = FirebaseAuth.getInstance();
             mCrashlytics = FirebaseCrashlytics.getInstance();
             mAnalytics = FirebaseAnalytics.getInstance(getActivity());
+            mPerformance = FirebasePerformance.getInstance();
             Log.d(TAG, "Firebase initialized.");
         } catch (Exception e) {
             Log.e(TAG, "ERROR " + e.getMessage());
@@ -96,8 +106,30 @@ public class FirebasePlugin extends GodotPlugin {
                 "log_event",
 
                 "record_exception",
-                "log"
+                "log",
+                "log_set_custom_key",
 
+                "new_http_metric",
+                "http_metric_start",
+                "http_metric_stop",
+                "http_metric_set_http_response_code",
+                "http_metric_set_set_request_payload_size",
+                "http_metric_set_response_payload_size",
+                "http_metric_set_response_content_type",
+                "http_metric_mark_request_complete",
+                "http_metric_mark_response_start",
+                "http_metric_get_attribute",
+                "http_metric_put_attribute",
+                "http_metric_remove_attribute",
+                "new_trace",
+                "trace_start",
+                "trace_stop",
+                "trace_get_attribute",
+                "trace_put_attribute",
+                "trace_remove_attribute",
+                "trace_increment_metric",
+                "trace_get_long_metric",
+                "trace_put_metric"
         );
     }
 
@@ -187,6 +219,164 @@ public class FirebasePlugin extends GodotPlugin {
 
     public void log(String message) {
         mCrashlytics.log(message);
+    }
+
+    public void log_set_custom_key(String key, String value) {
+        mCrashlytics.setCustomKey(key, value);
+    }
+
+    public int new_http_metric(String url, String method) {
+        HttpMetric metric = new HttpMetric(url, method, TransportManager.getInstance(), new Timer());
+
+        for (int i = 0; i <= metrics.keySet().size(); i++) {
+            if (!metrics.containsKey(i)) {
+                metrics.put(i, metric);
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public void http_metric_start(int metric_id) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.start();
+        }
+    }
+
+    public void http_metric_stop(int metric_id) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.stop();
+        }
+    }
+
+    public void http_metric_set_http_response_code(int metric_id, int response_code) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.setHttpResponseCode(response_code);
+        }
+    }
+
+    public void http_metric_set_set_request_payload_size(int metric_id, int bytes) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.setRequestPayloadSize((long) bytes);
+        }
+    }
+
+    public void http_metric_set_response_payload_size(int metric_id, int bytes) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.setResponsePayloadSize((long) bytes);
+        }
+    }
+
+    public void http_metric_set_response_content_type(int metric_id, String contet_type) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.setResponseContentType(contet_type);
+        }
+    }
+
+    public void http_metric_mark_request_complete(int metric_id) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.markRequestComplete();
+        }
+    }
+
+    public void http_metric_mark_response_start(int metric_id) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.markResponseStart();
+        }
+    }
+
+    public String http_metric_get_attribute(int metric_id, String attribute) {
+        HttpMetric metric = metrics.get(metric_id);
+        return metric != null ? metric.getAttribute(attribute) : null;
+    }
+
+    public void http_metric_put_attribute(int metric_id, String attribute, String value) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.putAttribute(attribute, value);
+        }
+    }
+
+    public void http_metric_remove_attribute(int metric_id, String attribute) {
+        HttpMetric metric = metrics.get(metric_id);
+        if (metric != null) {
+            metric.removeAttribute(attribute);
+        }
+    }
+
+
+    public int new_trace(String trace_name) {
+        Trace trace = mPerformance.newTrace(trace_name);
+
+        for (int i = 0; i <= traces.keySet().size(); i++) {
+            if (!traces.containsKey(i)) {
+                traces.put(i, trace);
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public void trace_start(int trace_id) {
+        Trace trace = traces.get(trace_id);
+        if (trace != null) {
+            trace.start();
+        }
+    }
+
+    public void trace_stop(int trace_id) {
+        Trace trace = traces.get(trace_id);
+        if (trace != null) {
+            trace.stop();
+        }
+    }
+
+    public String trace_get_attribute(int trace_id, String attribute) {
+        Trace trace = traces.get(trace_id);
+        return trace != null ? trace.getAttribute(attribute) : null;
+    }
+
+    public void trace_put_attribute(int trace_id, String attribute, String value) {
+        Trace trace = traces.get(trace_id);
+        if (trace != null) {
+            trace.putAttribute(attribute, value);
+        }
+    }
+
+    public void trace_remove_attribute(int trace_id, String attribute) {
+        Trace trace = traces.get(trace_id);
+        if (trace != null) {
+            trace.removeAttribute(attribute);
+        }
+    }
+
+    public void trace_increment_metric(int trace_id, String metric, int increment_value) {
+        Trace trace = traces.get(trace_id);
+        if (trace != null) {
+            trace.incrementMetric(metric, (long) increment_value);
+        }
+    }
+
+    public int trace_get_long_metric(int trace_id, String metric) {
+        Trace trace = traces.get(trace_id);
+        return (int) (trace != null ? trace.getLongMetric(metric) : 0);
+    }
+
+    public void trace_put_metric(int trace_id, String metric, int value) {
+        Trace trace = traces.get(trace_id);
+        if (trace != null) {
+            trace.putMetric(metric, (long) value);
+        }
     }
 
     private FirebaseUser getCurrentUser() {
