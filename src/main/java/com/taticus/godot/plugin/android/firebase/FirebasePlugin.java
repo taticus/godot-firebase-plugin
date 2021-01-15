@@ -59,8 +59,8 @@ public class FirebasePlugin extends GodotPlugin {
     private FirebaseAnalytics mAnalytics;
     private FirebasePerformance mPerformance;
 
-    private HashMap<Integer, HttpMetric> metrics;
-    private HashMap<Integer, Trace> traces;
+    private final HashMap<Integer, HttpMetric> metrics = new HashMap<>();
+    private final HashMap<Integer, Trace> traces = new HashMap<>();
 
     public FirebasePlugin(Godot godot) {
         super(godot);
