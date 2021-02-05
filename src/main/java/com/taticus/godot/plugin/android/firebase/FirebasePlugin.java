@@ -16,10 +16,10 @@ import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
-import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GetTokenResult;
@@ -32,16 +32,27 @@ import com.google.firebase.perf.metrics.Trace;
 import com.google.firebase.perf.transport.TransportManager;
 import com.google.firebase.perf.util.Timer;
 
+import org.godotengine.godot.Dictionary;
+import org.godotengine.godot.Godot;
+import org.godotengine.godot.plugin.GodotPlugin;
+import org.godotengine.godot.plugin.SignalInfo;
+
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
-import org.godotengine.godot.Godot;
-import org.godotengine.godot.plugin.GodotPlugin;
-import org.godotengine.godot.plugin.SignalInfo;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class FirebasePlugin extends GodotPlugin {
 
@@ -53,11 +64,14 @@ public class FirebasePlugin extends GodotPlugin {
     private final SignalInfo loginFailedSignal = new SignalInfo("login_failed", String.class);
     private final SignalInfo idTokenLoadedSignal = new SignalInfo("id_token_loaded", String.class);
     private final SignalInfo idTokenFailedSignal = new SignalInfo("id_token_failed", String.class);
+    private final SignalInfo requestCompleted = new SignalInfo("request_completed", Integer.class, String.class);
 
     private FirebaseAuth mAuth;
     private FirebaseCrashlytics mCrashlytics;
     private FirebaseAnalytics mAnalytics;
     private FirebasePerformance mPerformance;
+
+    private final OkHttpClient client = new OkHttpClient.Builder().connectTimeout(15L, TimeUnit.SECONDS).build();
 
     private final HashMap<Integer, HttpMetric> metrics = new HashMap<>();
     private final HashMap<Integer, Trace> traces = new HashMap<>();
@@ -87,12 +101,15 @@ public class FirebasePlugin extends GodotPlugin {
                 loginSuccessfullySignal,
                 loginFailedSignal,
                 idTokenLoadedSignal,
-                idTokenFailedSignal));
+                idTokenFailedSignal,
+                requestCompleted));
     }
 
     @Override
     public List<String> getPluginMethods() {
         return Arrays.asList(
+                "get_plugin_methods",
+                "http_request",
                 "login_with_play_games",
                 "login_with_google",
                 "is_logged_in",
@@ -131,6 +148,57 @@ public class FirebasePlugin extends GodotPlugin {
                 "trace_get_long_metric",
                 "trace_put_metric"
         );
+    }
+
+    public String[] get_plugin_methods() {
+        List<String> list = getPluginMethods();
+        String[] array = new String[list.size()];
+        for (int i = 0; i < list.size(); i++) array[i] = list.get(i);
+        return array;
+    }
+
+    public void http_request(String url, String[] headers, String method, String body) {
+        Request.Builder builder = new Request.Builder()
+                .url(url);
+
+        String contentType = "application/json";
+        for (String header : headers){
+            String[] headerData = header.split(": ");
+            if(headerData[0].toLowerCase().equals("content-type")){
+                contentType = headerData[1];
+            }
+
+            builder.addHeader(headerData[0], headerData[1]);
+        }
+        builder.method(method, body != null && method.equals("POST") ? RequestBody.create(MediaType.get(contentType), body) : null);
+
+        Request request = builder.build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, final IOException e) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        emitSignal(requestCompleted.getName(), 0, e.getMessage());
+                    }
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, final Response response) throws IOException {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            emitSignal(requestCompleted.getName(), response.code(), response.body().string());
+                        } catch (Exception e) {
+                            emitSignal(requestCompleted.getName(), 0, e.getMessage());
+                        }
+                    }
+                });
+            }
+        });
     }
 
     public void login_with_play_games(String webClientid) {
