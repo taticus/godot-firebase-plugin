@@ -32,7 +32,6 @@ import com.google.firebase.perf.metrics.Trace;
 import com.google.firebase.perf.transport.TransportManager;
 import com.google.firebase.perf.util.Timer;
 
-import org.godotengine.godot.Dictionary;
 import org.godotengine.godot.Godot;
 import org.godotengine.godot.plugin.GodotPlugin;
 import org.godotengine.godot.plugin.SignalInfo;
@@ -162,9 +161,9 @@ public class FirebasePlugin extends GodotPlugin {
                 .url(url);
 
         String contentType = "application/json";
-        for (String header : headers){
+        for (String header : headers) {
             String[] headerData = header.split(": ");
-            if(headerData[0].toLowerCase().equals("content-type")){
+            if (headerData[0].toLowerCase().equals("content-type")) {
                 contentType = headerData[1];
             }
 
@@ -202,6 +201,7 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     public void login_with_play_games(String webClientid) {
+        Log.d(TAG, "Request to login with play games" );
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN)
                 .requestServerAuthCode(webClientid, true)
                 .requestEmail()
@@ -212,6 +212,7 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     public void login_with_google(String webClientid) {
+        Log.d(TAG, "Request to login with google" );
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(webClientid)
                 .requestEmail()
@@ -244,26 +245,38 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     public void get_id_token(boolean forceRefresh) {
-        FirebaseUser user = getCurrentUser();
-        if (user == null) {
-            emitSignal(idTokenFailedSignal.getName(), "User not loaded");
-            return;
-        }
+        try{
+            Log.d(TAG, "Request to get id token" );
+            FirebaseUser user = getCurrentUser();
+            if (user == null) {
+                Log.d(TAG, "There is no logged user");
+                emitSignal(idTokenFailedSignal.getName(), "User not loaded");
+                return;
+            }
 
-        user
-                .getIdToken(forceRefresh)
-                .addOnCompleteListener(new OnCompleteListener<GetTokenResult>() {
-                    public void onComplete(@NonNull Task<GetTokenResult> task) {
-                        if (task.isSuccessful()) {
-                            String idToken = Objects.requireNonNull(task.getResult()).getToken();
-                            emitSignal(idTokenLoadedSignal.getName(), idToken);
-                        } else {
-                            String msg = "Get Id Token in failed " + Objects.requireNonNull(task.getException()).getMessage();
-                            Log.w(TAG, msg);
-                            emitSignal(idTokenFailedSignal.getName(), msg);
+            Log.d(TAG, "Identified user: " + user.getDisplayName());
+
+            user
+                    .getIdToken(forceRefresh)
+                    .addOnCompleteListener(new OnCompleteListener<GetTokenResult>() {
+                        public void onComplete(@NonNull Task<GetTokenResult> task) {
+                            if (task.isSuccessful()) {
+                                String idToken = Objects.requireNonNull(task.getResult()).getToken();
+                                if (idToken != null) {
+                                    emitSignal(idTokenLoadedSignal.getName(), idToken);
+                                } else {
+                                    emitSignal(idTokenFailedSignal.getName(), "Token Unavailable");
+                                }
+                            } else {
+                                String msg = "Get Id Token in failed " + Objects.requireNonNull(task.getException()).getMessage();
+                                Log.w(TAG, msg);
+                                emitSignal(idTokenFailedSignal.getName(), msg);
+                            }
                         }
-                    }
-                });
+                    });
+        } catch (Exception e){
+            Log.e(TAG, "Error in get_id_token: " + e.getMessage());
+        }
     }
 
     public void sign_out() {
