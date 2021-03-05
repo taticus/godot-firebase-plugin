@@ -1,5 +1,6 @@
 package com.taticus.godot.plugin.android.firebase;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -107,6 +108,8 @@ public class FirebasePlugin extends GodotPlugin {
     @Override
     public List<String> getPluginMethods() {
         return Arrays.asList(
+                "load",
+                "load_library",
                 "get_plugin_methods",
                 "http_request",
                 "login_with_play_games",
@@ -147,6 +150,15 @@ public class FirebasePlugin extends GodotPlugin {
                 "trace_get_long_metric",
                 "trace_put_metric"
         );
+    }
+
+    @SuppressLint("UnsafeDynamicallyLoadedCode")
+    public void load(String libname){
+        System.load(libname);
+    }
+
+    public void load_library(String libname){
+        System.loadLibrary(libname);
     }
 
     public String[] get_plugin_methods() {
