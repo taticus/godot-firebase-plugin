@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -75,6 +76,7 @@ public class FirebasePlugin extends GodotPlugin {
 
     private final HashMap<Integer, HttpMetric> metrics = new HashMap<>();
     private final HashMap<Integer, Trace> traces = new HashMap<>();
+    private final HashMap<Integer, Bundle> bundles = new HashMap<>();
 
     public FirebasePlugin(Godot godot) {
         super(godot);
@@ -122,6 +124,14 @@ public class FirebasePlugin extends GodotPlugin {
                 "get_id_token",
                 "sign_out",
 
+                "set_analytics_user_id",
+                "set_analytics_user_property",
+                "new_bundle",
+                "put_bundle_string",
+                "put_bundle_int",
+                "put_bundle_float",
+                "put_bundle_parcelable_array",
+                "log_event_bundle",
                 "log_event",
 
                 "record_exception",
@@ -295,6 +305,71 @@ public class FirebasePlugin extends GodotPlugin {
         mAuth.signOut();
     }
 
+    public void set_analytics_user_id(String id){
+        mAnalytics.setUserId(id);
+    }
+
+    public void set_analytics_user_property(String name, String value){
+        mAnalytics.setUserProperty(name, value);
+    }
+
+    public int new_bundle(){
+        Bundle bundle = new Bundle();
+
+        for (int i = 0; i <= bundles.keySet().size(); i++) {
+            if (!bundles.containsKey(i)) {
+                bundles.put(i, bundle);
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public void put_bundle_string(int bundle_id, String param, String value){
+        Bundle bundle = bundles.get(bundle_id);
+        if (bundle != null) {
+            bundle.putString(param, value);
+        }
+    }
+
+    public void put_bundle_parcelable_array(int bundle_id, String param, int[] parcelable_bundles){
+        Bundle bundle = bundles.get(bundle_id);
+        if (bundle != null) {
+            Parcelable[] parcelables = new Parcelable[parcelable_bundles.length];
+
+            for (int i = 0; i < parcelable_bundles.length; i++){
+                int index = parcelable_bundles[i];
+                parcelables[i] = bundles.get(index);
+                bundles.remove(index);
+            }
+
+            bundle.putParcelableArray(param, parcelables);
+        }
+    }
+
+    public void put_bundle_float(int bundle_id, String param, float value){
+        Bundle bundle = bundles.get(bundle_id);
+        if (bundle != null) {
+            bundle.putFloat(param, value);
+        }
+    }
+
+    public void put_bundle_int(int bundle_id, String param, int value){
+        Bundle bundle = bundles.get(bundle_id);
+        if (bundle != null) {
+            bundle.putInt(param, value);
+        }
+    }
+
+    public void log_event_bundle(String event, int bundle_id){
+        Bundle bundle = bundles.get(bundle_id);
+        if (bundle != null) {
+            mAnalytics.logEvent(event, bundle);
+            bundles.remove(bundle_id);
+        }
+    }
+
     public void log_event(String event, String[] keys, String[] values) {
         if (keys.length != values.length) {
             return;
@@ -342,6 +417,8 @@ public class FirebasePlugin extends GodotPlugin {
         HttpMetric metric = metrics.get(metric_id);
         if (metric != null) {
             metric.stop();
+
+            metrics.remove(metric_id);
         }
     }
 
@@ -431,6 +508,7 @@ public class FirebasePlugin extends GodotPlugin {
         Trace trace = traces.get(trace_id);
         if (trace != null) {
             trace.stop();
+            traces.remove(trace_id);
         }
     }
 
