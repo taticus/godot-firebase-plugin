@@ -180,7 +180,6 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     public void http_request(String url, String[] headers, String method, String body) {
-        Log.d(TAG, "http " + method + " request to " + url);
         Request.Builder builder = new Request.Builder()
                 .url(url);
 
@@ -224,7 +223,6 @@ public class FirebasePlugin extends GodotPlugin {
                     @Override
                     public void run() {
                         try {
-                            Log.d(TAG, "http result " + code);
                             emitSignal(requestCompleted.getName(), code, bodyString);
                         } catch (Exception e) {
                             Log.d(TAG, "http erro", e);
