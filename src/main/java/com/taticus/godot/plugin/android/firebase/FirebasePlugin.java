@@ -54,6 +54,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public class FirebasePlugin extends GodotPlugin {
 
@@ -163,11 +164,11 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     @SuppressLint("UnsafeDynamicallyLoadedCode")
-    public void load(String libname){
+    public void load(String libname) {
         System.load(libname);
     }
 
-    public void load_library(String libname){
+    public void load_library(String libname) {
         System.loadLibrary(libname);
     }
 
@@ -179,6 +180,7 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     public void http_request(String url, String[] headers, String method, String body) {
+        Log.d(TAG, "http " + method + " request to " + url);
         Request.Builder builder = new Request.Builder()
                 .url(url);
 
@@ -201,6 +203,7 @@ public class FirebasePlugin extends GodotPlugin {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        Log.d(TAG, "http error", e);
                         emitSignal(requestCompleted.getName(), 0, e.getMessage());
                     }
                 });
@@ -208,12 +211,23 @@ public class FirebasePlugin extends GodotPlugin {
 
             @Override
             public void onResponse(Call call, final Response response) throws IOException {
+                int code = response.code();
+                final ResponseBody body = response.body();
+                final String bodyString;
+                if (body != null) {
+                    bodyString = body.string();
+                } else {
+                    bodyString = "";
+                }
+
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         try {
-                            emitSignal(requestCompleted.getName(), response.code(), response.body().string());
+                            Log.d(TAG, "http result " + code);
+                            emitSignal(requestCompleted.getName(), code, bodyString);
                         } catch (Exception e) {
+                            Log.d(TAG, "http erro", e);
                             emitSignal(requestCompleted.getName(), 0, e.getMessage());
                         }
                     }
@@ -223,7 +237,7 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     public void login_with_play_games(String webClientid) {
-        Log.d(TAG, "Request to login with play games" );
+        Log.d(TAG, "Request to login with play games");
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN)
                 .requestServerAuthCode(webClientid, true)
                 .requestEmail()
@@ -234,7 +248,7 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     public void login_with_google(String webClientid) {
-        Log.d(TAG, "Request to login with google" );
+        Log.d(TAG, "Request to login with google");
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(webClientid)
                 .requestEmail()
@@ -267,8 +281,8 @@ public class FirebasePlugin extends GodotPlugin {
     }
 
     public void get_id_token(boolean forceRefresh) {
-        try{
-            Log.d(TAG, "Request to get id token" );
+        try {
+            Log.d(TAG, "Request to get id token");
             FirebaseUser user = getCurrentUser();
             if (user == null) {
                 Log.d(TAG, "There is no logged user");
@@ -296,7 +310,7 @@ public class FirebasePlugin extends GodotPlugin {
                             }
                         }
                     });
-        } catch (Exception e){
+        } catch (Exception e) {
             Log.e(TAG, "Error in get_id_token: " + e.getMessage());
         }
     }
@@ -305,15 +319,15 @@ public class FirebasePlugin extends GodotPlugin {
         mAuth.signOut();
     }
 
-    public void set_analytics_user_id(String id){
+    public void set_analytics_user_id(String id) {
         mAnalytics.setUserId(id);
     }
 
-    public void set_analytics_user_property(String name, String value){
+    public void set_analytics_user_property(String name, String value) {
         mAnalytics.setUserProperty(name, value);
     }
 
-    public int new_bundle(){
+    public int new_bundle() {
         Bundle bundle = new Bundle();
 
         for (int i = 0; i <= bundles.keySet().size(); i++) {
@@ -326,19 +340,19 @@ public class FirebasePlugin extends GodotPlugin {
         return -1;
     }
 
-    public void put_bundle_string(int bundle_id, String param, String value){
+    public void put_bundle_string(int bundle_id, String param, String value) {
         Bundle bundle = bundles.get(bundle_id);
         if (bundle != null) {
             bundle.putString(param, value);
         }
     }
 
-    public void put_bundle_parcelable_array(int bundle_id, String param, int[] parcelable_bundles){
+    public void put_bundle_parcelable_array(int bundle_id, String param, int[] parcelable_bundles) {
         Bundle bundle = bundles.get(bundle_id);
         if (bundle != null) {
             Parcelable[] parcelables = new Parcelable[parcelable_bundles.length];
 
-            for (int i = 0; i < parcelable_bundles.length; i++){
+            for (int i = 0; i < parcelable_bundles.length; i++) {
                 int index = parcelable_bundles[i];
                 parcelables[i] = bundles.get(index);
                 bundles.remove(index);
@@ -348,21 +362,21 @@ public class FirebasePlugin extends GodotPlugin {
         }
     }
 
-    public void put_bundle_float(int bundle_id, String param, float value){
+    public void put_bundle_float(int bundle_id, String param, float value) {
         Bundle bundle = bundles.get(bundle_id);
         if (bundle != null) {
             bundle.putFloat(param, value);
         }
     }
 
-    public void put_bundle_int(int bundle_id, String param, int value){
+    public void put_bundle_int(int bundle_id, String param, int value) {
         Bundle bundle = bundles.get(bundle_id);
         if (bundle != null) {
             bundle.putInt(param, value);
         }
     }
 
-    public void log_event_bundle(String event, int bundle_id){
+    public void log_event_bundle(String event, int bundle_id) {
         Bundle bundle = bundles.get(bundle_id);
         if (bundle != null) {
             mAnalytics.logEvent(event, bundle);
