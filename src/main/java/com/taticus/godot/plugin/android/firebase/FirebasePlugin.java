@@ -38,6 +38,7 @@ import org.godotengine.godot.Godot;
 import org.godotengine.godot.plugin.GodotPlugin;
 import org.godotengine.godot.plugin.SignalInfo;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -46,6 +47,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPInputStream;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -214,7 +216,11 @@ public class FirebasePlugin extends GodotPlugin {
                 final ResponseBody body = response.body();
                 final String bodyString;
                 if (body != null) {
-                    bodyString = body.string();
+                    if(response.header("content-encoding") != null && Objects.equals(response.header("content-encoding"), "gzip")){
+                        bodyString = decompress(body.bytes());
+                    } else {
+                        bodyString = body.string();
+                    }
                 } else {
                     bodyString = "";
                 }
@@ -232,6 +238,21 @@ public class FirebasePlugin extends GodotPlugin {
                 });
             }
         });
+    }
+
+    public static String decompress(byte[] compressed) throws IOException {
+        final int BUFFER_SIZE = 32;
+        ByteArrayInputStream is = new ByteArrayInputStream(compressed);
+        GZIPInputStream gis = new GZIPInputStream(is, BUFFER_SIZE);
+        StringBuilder string = new StringBuilder();
+        byte[] data = new byte[BUFFER_SIZE];
+        int bytesRead;
+        while ((bytesRead = gis.read(data)) != -1) {
+            string.append(new String(data, 0, bytesRead));
+        }
+        gis.close();
+        is.close();
+        return string.toString();
     }
 
     public void login_with_play_games(String webClientid) {
